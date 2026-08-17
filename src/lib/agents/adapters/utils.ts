@@ -2,7 +2,7 @@ import { execFile, execFileSync, spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import { getNvmNodeBin } from "../nvm-path";
-import { readCabinetEnvFile } from "@/lib/runtime/cabinet-env";
+import { fileOwnedEnvKeys, readCabinetEnvFile } from "@/lib/runtime/cabinet-env";
 
 const nvmBin = getNvmNodeBin();
 
@@ -70,12 +70,27 @@ export function withAdapterRuntimeEnv(
   // without IPC between Next.js and the daemon. Caller-supplied env still
   // wins over file values (so options.env / process.env shell-overrides
   // take precedence — consistent with dotenv conventions).
-  const fileValues = readCabinetEnvFile().values;
-  return {
-    ...fileValues,
-    ...env,
-    PATH: getAdapterRuntimePath(),
-  };
+  return mergeAdapterEnv(readCabinetEnvFile().values, env, fileOwnedEnvKeys());
+}
+
+/**
+ * Merge order: caller env over file values — EXCEPT keys whose process.env
+ * copy was injected from the file at boot (fileOwned). Those are snapshots,
+ * not shell overrides, so the live file wins for them; a key the file no
+ * longer defines is dropped. Without this, any key present at boot shadows
+ * every later file edit until the process restarts.
+ */
+export function mergeAdapterEnv(
+  fileValues: Record<string, string>,
+  env: NodeJS.ProcessEnv,
+  fileOwned: ReadonlySet<string>,
+): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = { ...fileValues, ...env };
+  for (const key of fileOwned) {
+    if (key in fileValues) merged[key] = fileValues[key];
+    else delete merged[key];
+  }
+  return { ...merged, PATH: getAdapterRuntimePath() };
 }
 
 export function resolveCommandFromCandidates(
