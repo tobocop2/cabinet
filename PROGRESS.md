@@ -1565,3 +1565,5 @@
 [2026-08-17] Pre-hydration synthetic model entries in the runtime picker now render repo-path refs as their short name (formatServedModel) instead of the raw path; alias ids pass through unchanged.
 
 [2026-08-17] Wiki-links to non-markdown files now resolve: [[cv-manual]] finds cv-manual.pdf. findPageBySlug also matches the extensionless basename (raw and slugified); markdown targets keep their existing resolution order.
+
+[2026-08-17] The lilbee integration page now documents how to turn model reasoning off. A local thinking model reasons on every turn; setting MAX_THINKING_TOKENS=0 in .cabinet.env makes Claude Code send thinking:{"type":"disabled"} to the lilbee server. The value reaches the adapter through withAdapterRuntimeEnv, so the next task picks it up without a restart. Docs and settings surface only, matching how the integration handles URL and token; a catalog invariant test pins the variable name.

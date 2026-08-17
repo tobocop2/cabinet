@@ -759,6 +759,14 @@ const LILBEE: CatalogEntry = {
       title: "Using a GPU box instead? (optional)",
       body: "Start `lilbee serve` on the remote machine and paste its /mcp URL and session token below. With a URL set, nothing is downloaded locally.",
     },
+    // Claude Code reads MAX_THINKING_TOKENS and sends thinking:{type:"disabled"}
+    // on the wire when it is 0; `withAdapterRuntimeEnv` merges `.cabinet.env`
+    // into the spawn, so no restart is needed. Docs only — no UI of our own.
+    {
+      title: "Turn model reasoning off (optional)",
+      body: "A local thinking model reasons before it answers, which costs time on every turn. To turn that off, put `MAX_THINKING_TOKENS=0` in `.cabinet.env`. Claude Code then asks lilbee to disable thinking. The next task picks the change up; nothing restarts.",
+      copy: "MAX_THINKING_TOKENS=0",
+    },
   ],
 };
 
