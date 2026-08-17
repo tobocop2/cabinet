@@ -65,7 +65,11 @@ export function buildRuntimeLabel(meta: RuntimeMetaLike): string | null {
   // local model behind an Anthropic-compatible URL), and the header must
   // name the model that really answered.
   const served = meta.runtime?.servedModel;
-  const model = served ? formatServedModel(served) : readModel(meta.adapterConfig);
+  // The requested id is also formatted: when it is a repo-path model ref
+  // (picked from the dynamic model list, or a default that names one), the
+  // running-task header should show the short model name, not the full path.
+  const requested = readModel(meta.adapterConfig);
+  const model = served ? formatServedModel(served) : requested ? formatServedModel(requested) : requested;
   const effort = readEffort(meta.adapterConfig);
   const provider = formatProviderLabel(meta.providerId);
 
