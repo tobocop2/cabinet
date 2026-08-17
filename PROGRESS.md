@@ -1563,3 +1563,5 @@
 [2026-08-17] The running-task header now formats the requested model id through formatServedModel: when the picker selects a repo-path model ref (or the default names one), the header shows the short model name from the first frame instead of the raw path, and alias ids pass through unchanged.
 
 [2026-08-17] Pre-hydration synthetic model entries in the runtime picker now render repo-path refs as their short name (formatServedModel) instead of the raw path; alias ids pass through unchanged.
+
+[2026-08-17] Wiki-links to non-markdown files now resolve: [[cv-manual]] finds cv-manual.pdf. findPageBySlug also matches the extensionless basename (raw and slugified); markdown targets keep their existing resolution order.

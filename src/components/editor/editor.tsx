@@ -63,11 +63,17 @@ function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNod
   // *slugifies to* the target slug.
   const lastSeg = (p: string) => p.split("/").pop() ?? p;
   const parentOf = (p: string) => (p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "");
+  // Non-markdown targets (PDFs, images) carry their extension in the tree,
+  // but a wiki-link names them without it ([[cv-manual]] -> cv-manual.pdf),
+  // so also match on the extensionless basename.
+  const stripExt = (s: string) => s.replace(/\.[A-Za-z0-9]+$/, "");
   const matches = allPages.filter(
     (p) =>
       p.name === slug ||
       p.path.endsWith("/" + slug) ||
-      slugifyPageName(lastSeg(p.path)) === slug
+      slugifyPageName(lastSeg(p.path)) === slug ||
+      stripExt(lastSeg(p.path)) === slug ||
+      slugifyPageName(stripExt(lastSeg(p.path))) === slug
   );
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0].path;
