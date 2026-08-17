@@ -114,6 +114,13 @@ export interface CatalogEntry {
   command?: string;
   args?: string[];
   /**
+   * Dev bootstrap: repo-relative path to a first-party server's local build.
+   * When the file exists, config/probe/login run it via `node` instead of the
+   * published npm package (which may not exist yet). Absent in packaged
+   * builds, so users always get the npx path.
+   */
+  localBuild?: string;
+  /**
    * Extra stdio args appended only when a given credential has a value in
    * `.cabinet.env`. Used for flags that apply to the "bring your own app" path
    * but would break the built-in/default path. Concrete case: Microsoft 365's
