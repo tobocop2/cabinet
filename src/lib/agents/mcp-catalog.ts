@@ -714,6 +714,7 @@ const LILBEE: CatalogEntry = {
   // bridges to a remote lilbee server when LILBEE_URL is set. Everything runs
   // on the user's own hardware; there is no account and no cloud API.
   args: ["-y", "lilbee@0.6.90", "mcp"],
+  localBuild: "mcps/mcp-lilbee/bin/lilbee-mcp.mjs",
   serverEnv: {
     LILBEE_URL: "${LILBEE_URL}",
     LILBEE_TOKEN: "${LILBEE_TOKEN}",
@@ -765,13 +766,15 @@ const LILBEE: CatalogEntry = {
       title: "Using a GPU box instead? (optional)",
       body: "Start `lilbee serve` on the remote machine and paste its /mcp URL and session token below. With a URL set, nothing is downloaded locally.",
     },
-    // Claude Code reads MAX_THINKING_TOKENS and sends thinking:{type:"disabled"}
-    // on the wire when it is 0; `withAdapterRuntimeEnv` merges `.cabinet.env`
-    // into the spawn, so no restart is needed. Docs only — no UI of our own.
+    // The reliable switch is server-side: lilbee's messages_reasoning
+    // setting suppresses thinking on /v1/messages no matter what the client
+    // sends (a thinking model reasons by template default, so a client that
+    // merely omits the thinking parameter does not stop it). The client-side
+    // env var is a per-turn request; keep both documented. Docs only — no UI.
     {
       title: "Turn model reasoning off (optional)",
-      body: "A local thinking model reasons before it answers, which costs time on every turn. To turn that off, put `MAX_THINKING_TOKENS=0` in `.cabinet.env`. Claude Code then asks lilbee to disable thinking. The next task picks the change up; nothing restarts.",
-      copy: "MAX_THINKING_TOKENS=0",
+      body: "A local thinking model reasons before it answers, which costs time on every turn. To turn that off, set `messages_reasoning = \"off\"` in the lilbee server's settings (TUI `/settings`, or config.toml). Optionally also put `MAX_THINKING_TOKENS=0` in `.cabinet.env` so the agent asks for no thinking per turn. Both apply to the next task; nothing restarts.",
+      copy: "messages_reasoning = \"off\"",
     },
   ],
 };

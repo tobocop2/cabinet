@@ -20,8 +20,9 @@ test("META_ADS never gains a registryId", () => {
 test("the lilbee entry documents the reasoning toggle", () => {
   const entry = MCP_CATALOG.find((e) => e.id === "lilbee");
   assert.ok(entry, "expected a lilbee entry in MCP_CATALOG");
-  const step = entry.setupSteps.find((s) => s.copy === "MAX_THINKING_TOKENS=0");
-  assert.ok(step, "lilbee must keep a setup step that copies MAX_THINKING_TOKENS=0");
+  const step = entry.setupSteps.find((s) => /messages_reasoning/.test(s.copy ?? ""));
+  assert.ok(step, "lilbee must keep a setup step for turning reasoning off");
+  assert.match(step.body, /messages_reasoning/);
   assert.match(step.body, /MAX_THINKING_TOKENS=0/);
   assert.match(step.body, /\.cabinet\.env/);
 });

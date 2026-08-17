@@ -1567,3 +1567,5 @@
 [2026-08-17] Wiki-links to non-markdown files now resolve: [[cv-manual]] finds cv-manual.pdf. findPageBySlug also matches the extensionless basename (raw and slugified); markdown targets keep their existing resolution order.
 
 [2026-08-17] The lilbee integration page now documents how to turn model reasoning off. A local thinking model reasons on every turn; setting MAX_THINKING_TOKENS=0 in .cabinet.env makes Claude Code send thinking:{"type":"disabled"} to the lilbee server. The value reaches the adapter through withAdapterRuntimeEnv, so the next task picks it up without a restart. Docs and settings surface only, matching how the integration handles URL and token; a catalog invariant test pins the variable name.
+
+[2026-08-17] The reasoning-off setup step now leads with the server-side switch: lilbee's messages_reasoning = "off" suppresses thinking on /v1/messages regardless of what the client sends (a thinking model reasons by template default, so a client that merely omits the thinking parameter does not stop it). MAX_THINKING_TOKENS=0 stays documented as the per-turn client request.
