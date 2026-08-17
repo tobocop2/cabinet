@@ -1551,3 +1551,5 @@
 [2026-08-17] lilbee entry now invokes the general npm launcher: npx -y lilbee@0.1.0 mcp (package renamed from lilbee-mcp; same shim behavior, plus full CLI passthrough for npm users).
 
 [2026-08-17] Task chrome now names the wire-reported model: adapters already captured the model id the endpoint actually served (stream-json message.model), but it was dropped at every persistence hop. The daemon and runner now thread it into meta.runtime.servedModel, and buildRuntimeLabel prefers it over the requested alias (short path-basename display, full ref as the header tooltip). Matters when a provider CLI resolves an alias against a non-default endpoint, e.g. local models behind an Anthropic-compatible URL: the header shows the model that really answered instead of the alias label.
+
+[2026-08-17] Review pass on the lilbee-integration branch: extracted per-key serial task chains into server/serial-chains.ts (SerialChains) with ordering/error/isolation tests, the daemon transcript serialization now uses it; added tests pinning that buildRuntimeLabel prefers the wire-reported model and formatServedModel shortens GGUF path refs.

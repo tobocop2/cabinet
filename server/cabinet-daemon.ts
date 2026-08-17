@@ -20,6 +20,7 @@ ensureBetterSqlite3();
 // re-merge from the file directly (mtime-cached), but loading here keeps the
 // daemon's own behavior consistent with Next.js.
 import { loadCabinetEnv } from "../src/lib/runtime/cabinet-env";
+import { SerialChains } from "./serial-chains";
 loadCabinetEnv();
 
 // Diagnostic logging: console capture + crash markers into
@@ -429,15 +430,9 @@ async function syncConversationChunk(sessionId: string, chunk: string): Promise<
   await appendConversationTranscript(sessionId, plainChunk, meta.cabinetPath);
 }
 
-/**
- * Per-session transcript write chains. Appends MUST be serialized:
- * syncConversationChunk awaits a meta read before its append, so concurrent
- * fire-and-forget calls land out of order whenever chunks arrive faster than
- * one read+append round-trip. Local-model providers stream per-token deltas
- * (hundreds of tiny chunks a second), which scrambles the stored transcript
- * pairwise; hosted APIs send big throttled chunks and rarely hit the window.
- */
-const transcriptWriteTails = new Map<string, Promise<void>>();
+// Local-model providers stream per-token deltas (hundreds of tiny chunks a
+// second); unchained appends scramble the stored transcript pairwise.
+const transcriptWrites = new SerialChains();
 
 function emitSessionOutput(
   session: ActiveSession,
@@ -447,21 +442,16 @@ function emitSessionOutput(
   if (!chunk) return;
 
   session.output.push(chunk);
-  const tail = transcriptWriteTails.get(session.id) ?? Promise.resolve();
-  const next = tail
-    .then(() => syncConversationChunk(session.id, chunk))
-    .catch((err) => {
+  void transcriptWrites.run(
+    session.id,
+    () => syncConversationChunk(session.id, chunk),
+    (err) => {
       console.warn(
         `[cabinet-daemon] failed to sync transcript chunk for session ${session.id}:`,
         err
       );
-    });
-  transcriptWriteTails.set(session.id, next);
-  void next.finally(() => {
-    if (transcriptWriteTails.get(session.id) === next) {
-      transcriptWriteTails.delete(session.id);
     }
-  });
+  );
   if (session.ws && session.ws.readyState === WebSocket.OPEN) {
     session.ws.send(chunk);
   }
@@ -474,8 +464,8 @@ function emitSessionOutput(
 
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
   // Drain pending transcript appends so the finalize pass reads a complete,
-  // ordered transcript (the write chain above serializes them).
-  await (transcriptWriteTails.get(session.id) ?? Promise.resolve()).catch(() => {});
+  // ordered transcript.
+  await transcriptWrites.drain(session.id);
   const meta = await readConversationMeta(session.id);
   if (!meta) {
     console.warn(
