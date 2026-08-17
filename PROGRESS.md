@@ -1561,3 +1561,5 @@
 [2026-08-17] The model picker now lists the lilbee server's installed chat models (GET /api/models on the configured LILBEE_URL/ANTHROPIC_BASE_URL origin), active model first. Picking a non-active model makes the claude adapter set it as lilbee's chat model (PUT /api/models/chat) before spawn; the engine queues requests during the reload. Without lilbee the static alias catalog stands. Raw model ids in the activity feed and the composer runtime hint now render through formatServedModel and prefer the wire-reported served model.
 
 [2026-08-17] The running-task header now formats the requested model id through formatServedModel: when the picker selects a repo-path model ref (or the default names one), the header shows the short model name from the first frame instead of the raw path, and alias ids pass through unchanged.
+
+[2026-08-17] Pre-hydration synthetic model entries in the runtime picker now render repo-path refs as their short name (formatServedModel) instead of the raw path; alias ids pass through unchanged.

@@ -3,6 +3,7 @@ import type {
   ProviderInfo,
   ProviderModel,
 } from "@/types/agents";
+import { formatServedModel } from "@/lib/agents/runtime-format";
 
 function matchesId<T extends { id: string }>(
   values: T[] | undefined,
@@ -32,7 +33,9 @@ export function resolveProviderModel(
   // clobbering the user's selection. After hydration the real model wins.
   if (provider?.dynamicModels && !provider.modelsHydrated) {
     const preserved = requestedModel || fallbackModel;
-    if (preserved) return { id: preserved, name: preserved };
+    // Repo-path model refs render as their short name even before hydration;
+    // aliases pass through formatServedModel unchanged.
+    if (preserved) return { id: preserved, name: formatServedModel(preserved) };
   }
 
   return models[0];
