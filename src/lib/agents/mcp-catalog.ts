@@ -128,7 +128,6 @@ export interface CatalogEntry {
    * runs `node <abs path>` instead of `command`/`args`, so a not-yet-published
    * server still works in dev. Absent in packaged builds → falls back to npx.
    */
-  localBuild?: string;
   /**
    * http entry whose URL comes from a user-supplied credential — per-account
    * remotes (Zapier, Make, ServiceNow) or bring-your-own community endpoints.
@@ -707,7 +706,7 @@ const LILBEE: CatalogEntry = {
   // The lilbee npm launcher bootstraps the standalone binary locally, or
   // bridges to a remote lilbee server when LILBEE_URL is set. Everything runs
   // on the user's own hardware; there is no account and no cloud API.
-  args: ["-y", "lilbee@0.1.0", "mcp"],
+  args: ["-y", "lilbee@0.6.90", "mcp"],
   serverEnv: {
     LILBEE_URL: "${LILBEE_URL}",
     LILBEE_TOKEN: "${LILBEE_TOKEN}",
@@ -787,7 +786,6 @@ const TELEGRAM: CatalogEntry = {
   mcpServerName: "cabinet-telegram",
   command: "npx",
   args: ["-y", "cabinet-mcp-telegram@0.1.0"],
-  localBuild: "mcps/mcp-telegram/dist/index.js",
   serverEnv: { TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN}" },
   credentials: [
     {
@@ -877,7 +875,6 @@ const DISCORD: CatalogEntry = {
   mcpServerName: "cabinet-discord",
   command: "npx",
   args: ["-y", "cabinet-mcp-discord@0.1.0"],
-  localBuild: "mcps/mcp-discord/dist/index.js",
   serverEnv: { DISCORD_TOKEN: "${DISCORD_TOKEN}" },
   credentials: [
     {
@@ -1140,7 +1137,6 @@ const STACKADAPT: CatalogEntry = {
   mcpServerName: "cabinet-stackadapt",
   command: "npx",
   args: ["-y", "cabinet-mcp-stackadapt@0.1.0"],
-  localBuild: "mcps/mcp-stackadapt/dist/index.js",
   serverEnv: {
     STACKADAPT_API_TOKEN: "${STACKADAPT_API_TOKEN}",
     STACKADAPT_API_URL: "${STACKADAPT_API_URL}",
