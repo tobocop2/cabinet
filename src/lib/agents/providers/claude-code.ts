@@ -6,6 +6,9 @@ import {
   resolveCliCommand,
 } from "../provider-cli";
 import { getNvmNodeBin } from "../nvm-path";
+import { listLilbeeChatModels, toProviderModels } from "../lilbee-models";
+import { applyModelEnvOverrides } from "../model-env-overrides";
+import { withAdapterRuntimeEnv } from "../adapters/utils";
 
 // Effort levels per Claude Code docs: Fable 5, Opus 4.8/4.7, and Sonnet 5 all
 // support the full ladder including the `xhigh` rung. (Sonnet 4.6 stopped at
@@ -82,6 +85,15 @@ export const claudeCodeProvider: AgentProvider = {
       effortLevels: [],
     },
   ],
+  async listModels() {
+    // With a lilbee server configured, the picker lists the models actually
+    // installed on it (every Claude alias remaps to one of them anyway).
+    // Selecting a non-active entry swaps the engine at task start. Without
+    // lilbee, the static alias catalog stands, env-relabeled.
+    const local = await listLilbeeChatModels();
+    if (local && local.installed.length > 0) return toProviderModels(local);
+    return applyModelEnvOverrides("claude-code", this.models ?? [], withAdapterRuntimeEnv());
+  },
   detachedPromptLaunchMode: "session",
   supportsTerminalResume: true,
   effortLevels: [...EFFORT_LEVELS_WITH_XHIGH],

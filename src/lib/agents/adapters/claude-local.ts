@@ -13,6 +13,7 @@ import {
 import type { AdapterSessionCodec, AgentExecutionAdapter } from "./types";
 import { getAdapterRuntimePath, runChildProcess } from "./utils";
 import { readStringConfig, readEffortConfig } from "./_shared/cli-args";
+import { ensureLilbeeChatModel, isLilbeeModelRef } from "../lilbee-models";
 
 const claudeSessionCodec: AdapterSessionCodec = {
   deserialize(raw) {
@@ -136,6 +137,14 @@ export const claudeLocalAdapter: AgentExecutionAdapter = {
     const command =
       readStringConfig(ctx.config, "command") || resolveCliCommand(claudeCodeProvider);
     const args = buildClaudeArgs(ctx.config, ctx.sessionId ?? null);
+
+    // A repo-path model id is a lilbee ref picked from the dynamic model
+    // list. Make it the server's active chat model before spawning; the
+    // engine queues requests while it reloads, so the spawn needs no wait.
+    const pickedModel = readStringConfig(ctx.config, "model");
+    if (pickedModel && isLilbeeModelRef(pickedModel)) {
+      await ensureLilbeeChatModel(pickedModel);
+    }
     const accumulator = createClaudeStreamAccumulator();
 
     await ctx.onMeta?.({

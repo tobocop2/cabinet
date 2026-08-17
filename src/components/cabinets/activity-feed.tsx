@@ -10,6 +10,7 @@ import { StatusIcon, type CardState } from "@/components/tasks/board/status-icon
 import { ProviderGlyph } from "@/components/agents/provider-glyph";
 import { useProviderIcons } from "@/hooks/use-provider-icons";
 import { formatRelative } from "./cabinet-utils";
+import { formatServedModel } from "@/lib/agents/runtime-format";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import type { ConversationMeta } from "@/types/conversations";
 import type { CabinetAgentSummary } from "@/types/cabinets";
@@ -155,9 +156,13 @@ export function ActivityFeed({
               ? providerIcons.get(conv.providerId)
               : null;
             const tokens = conv.tokens?.total ?? 0;
-            const modelName =
-              typeof conv.adapterConfig?.model === "string"
-                ? conv.adapterConfig.model
+            // Prefer the wire-reported served model; the requested id can be
+            // an alias that a runtime env remaps to a different model.
+            const servedModel = conv.runtime?.servedModel;
+            const modelName = servedModel
+              ? formatServedModel(servedModel)
+              : typeof conv.adapterConfig?.model === "string"
+                ? formatServedModel(conv.adapterConfig.model)
                 : undefined;
             return (
               <li key={buildConversationInstanceKey(conv)}>
