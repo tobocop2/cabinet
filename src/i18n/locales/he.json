@@ -1823,6 +1823,12 @@
       "install": "התקנה",
       "howToFix": "איך לתקן"
     },
+    "integration": {
+      "online": "{{name}} מקוון",
+      "onlineWithDetail": "{{name}} מקוון ומריץ את {{detail}}",
+      "notReady": "{{name}} מגיב אך עדיין אינו מוכן",
+      "offline": "{{name}} אינו מגיב"
+    },
     "save": {
       "retryTitle": "לחיצה לניסיון שמירה חוזר",
       "retryAriaLabel": "השמירה נכשלה — לחיצה לניסיון חוזר",

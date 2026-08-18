@@ -40,3 +40,49 @@ test("every vendor-tier catalog entry carries a vendorName", () => {
     );
   }
 });
+
+// A status pill reads its server URL out of `.cabinet.env`, and the only keys
+// that land there are the ones the entry itself asks for. A probe naming a key
+// the entry never declares would render no pill and give no clue why, so tie
+// the two together here rather than at runtime.
+test("every status probe names env keys its own entry declares", () => {
+  // No assertion that any entry declares one: the trait is generic, and a
+  // catalog that ships none is a legitimate catalog.
+  for (const entry of MCP_CATALOG.filter((e) => e.statusProbe)) {
+    const probe = entry.statusProbe!;
+    const declared = new Set(
+      Object.values(entry.serverEnv ?? {})
+        .map((v) => /^\$\{([A-Z0-9_]+)\}$/.exec(v)?.[1])
+        .filter((k): k is string => Boolean(k)),
+    );
+    assert.ok(
+      declared.has(probe.urlEnv),
+      `${entry.id}: statusProbe.urlEnv "${probe.urlEnv}" is not in serverEnv`,
+    );
+    if (probe.tokenEnv) {
+      assert.ok(
+        declared.has(probe.tokenEnv),
+        `${entry.id}: statusProbe.tokenEnv "${probe.tokenEnv}" is not in serverEnv`,
+      );
+    }
+    assert.match(probe.path, /^\//, `${entry.id}: statusProbe.path must start with "/"`);
+    if (probe.detailPath) {
+      assert.match(probe.detailPath, /^\//, `${entry.id}: statusProbe.detailPath must start with "/"`);
+    }
+    assert.equal(
+      Boolean(probe.detailPath),
+      Boolean(probe.detailField),
+      `${entry.id}: detailPath and detailField only work as a pair`,
+    );
+  }
+});
+
+// Ids key the config writer's server map, React lists, and the status route's
+// per-server memory. A duplicate would silently make one entry shadow another.
+test("every catalog entry has a unique id", () => {
+  const seen = new Set<string>();
+  for (const entry of MCP_CATALOG) {
+    assert.ok(!seen.has(entry.id), `duplicate catalog id "${entry.id}"`);
+    seen.add(entry.id);
+  }
+});

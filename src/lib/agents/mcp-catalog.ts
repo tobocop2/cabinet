@@ -31,6 +31,7 @@
  *   - `cabinet-broker` — reserved for the future cloud build (managed OAuth,
  *                   secret server-side). Not used by the local build.
  */
+import type { StatusProbe } from "@/lib/integrations/status-probe";
 
 import { buildSlackCreateUrl, buildSlackManifestJson } from "./slack-manifest";
 
@@ -113,6 +114,12 @@ export interface CatalogEntry {
   /** stdio transport */
   command?: string;
   args?: string[];
+  /**
+   * How the status bar asks this integration's own server whether it is
+   * healthy. Entries that declare it get a pill; entries that do not are
+   * unaffected. See `src/lib/integrations/status-probe.ts`.
+   */
+  statusProbe?: StatusProbe;
   /**
    * Relative path (from the repo root) to a first-party server's local build.
    * When it exists — i.e. Cabinet is running from source — the config writer
@@ -715,6 +722,14 @@ const LILBEE: CatalogEntry = {
   // on the user's own hardware; there is no account and no cloud API.
   args: ["-y", "lilbee@0.6.90", "mcp"],
   localBuild: "mcps/mcp-lilbee/bin/lilbee-mcp.mjs",
+  statusProbe: {
+    urlEnv: "LILBEE_URL",
+    tokenEnv: "LILBEE_TOKEN",
+    path: "/api/health",
+    readyField: "chat_ready",
+    detailPath: "/api/models",
+    detailField: "chat.active",
+  },
   serverEnv: {
     LILBEE_URL: "${LILBEE_URL}",
     LILBEE_TOKEN: "${LILBEE_TOKEN}",

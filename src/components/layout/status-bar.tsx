@@ -19,6 +19,7 @@ import { dedupFetch } from "@/lib/api/dedup-fetch";
 import { useLocale } from "@/i18n/use-locale";
 import { useUserProfile } from "@/hooks/use-user-profile";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
+import { IntegrationStatusPills } from "./integration-status-pills";
 import type { TFunction } from "i18next";
 
 const DISCORD_SUPPORT_URL = "https://discord.gg/hJa5TRTbTH";
@@ -694,6 +695,7 @@ export function StatusBar() {
             </div>
           )}
         </div>
+        <IntegrationStatusPills />
         {isEditorActive && currentPath && (
           saveStatus === "error" ? (
             // Audit #126: clickable retry instead of forcing the user to
