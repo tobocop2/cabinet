@@ -45,16 +45,21 @@ import type { CatalogEntry } from "./mcp-catalog";
  * writing `MS365_MCP_CLIENT_ID=${...}` with no value would break that. Static
  * (non-placeholder) values are always kept.
  */
-function resolveServerEnv(
+export function resolveServerEnv(
   serverEnv: Record<string, string>,
+  values: Record<string, string> = readCabinetEnvFile().values,
 ): Record<string, string> | undefined {
-  const values = readCabinetEnvFile().values;
   const out: Record<string, string> = {};
   for (const [key, val] of Object.entries(serverEnv)) {
     const placeholder = /^\$\{([A-Z][A-Z0-9_]*)\}$/.exec(val);
     if (placeholder) {
       const ref = values[placeholder[1]];
       if (ref === undefined || ref === "") continue; // unset → let the server default
+      // Substitute: the spawned server gets its env verbatim, so writing the
+      // raw `${VAR}` hands it the literal text and it silently falls back to
+      // its own defaults (a remote-mode server quietly runs local instead).
+      out[key] = ref;
+      continue;
     }
     out[key] = val;
   }
