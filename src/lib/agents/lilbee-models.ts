@@ -4,13 +4,16 @@ import type { ProviderModel } from "@/lib/agents/provider-interface";
 
 /**
  * lilbee REST access derived from the runtime env. LILBEE_URL points at the
- * MCP endpoint (…/mcp); the REST API lives on the same origin. Falls back to
- * ANTHROPIC_BASE_URL, which lilbee also serves.
+ * MCP endpoint (…/mcp); the REST API lives on the same origin.
  */
 export function lilbeeRestConfig(
   env: NodeJS.ProcessEnv = withAdapterRuntimeEnv()
 ): { baseUrl: string; token?: string } | null {
-  const raw = env.LILBEE_URL || env.ANTHROPIC_BASE_URL;
+  // LILBEE_URL only. ANTHROPIC_BASE_URL names any Anthropic-compatible
+  // endpoint (LiteLLM, a Bedrock gateway, a corporate proxy); treating it as
+  // lilbee would send the auth token to a host that never opted in, and let
+  // its response replace the model catalog.
+  const raw = env.LILBEE_URL;
   if (!raw) return null;
   let baseUrl: string;
   try {
@@ -22,9 +25,14 @@ export function lilbeeRestConfig(
   return { baseUrl, token };
 }
 
-/** lilbee model refs are repo paths (owner/repo/file.gguf); aliases are not. */
+/**
+ * lilbee model refs are repo paths ending in a GGUF filename. Keying on the
+ * suffix rather than a slash keeps vendor-namespaced ids from other providers
+ * (e.g. `opencode/minimax-m2.5-free`) out of the lilbee path, where they would
+ * each cost a blocking HTTP round trip at task spawn.
+ */
 export function isLilbeeModelRef(model: string): boolean {
-  return model.includes("/");
+  return /\.gguf$/i.test(model);
 }
 
 async function lilbeeFetch(
@@ -101,9 +109,15 @@ export async function ensureLilbeeChatModel(ref: string): Promise<void> {
   const current = await listLilbeeChatModels();
   if (!current || current.active === ref) return;
   if (!current.installed.includes(ref)) return;
-  await lilbeeFetch("/api/models/chat", {
+  const res = await lilbeeFetch("/api/models/chat", {
     method: "PUT",
     body: JSON.stringify({ model: ref }),
     timeoutMs: 120_000,
   });
+  if (!res || !res.ok) {
+    throw new Error(
+      `lilbee did not switch to ${ref}${res ? ` (HTTP ${res.status})` : " (server unreachable)"}. ` +
+        "The task would have run on a different model, so it was not started."
+    );
+  }
 }

@@ -6,10 +6,13 @@ import {
   toProviderModels,
 } from "@/lib/agents/lilbee-models";
 
-test("repo-path refs are lilbee models; aliases are not", () => {
+test("only GGUF refs are lilbee models", () => {
   assert.equal(isLilbeeModelRef("unsloth/Qwen3.6-27B-GGUF/Qwen3.6-27B-Q5_K_M.gguf"), true);
   assert.equal(isLilbeeModelRef("sonnet"), false);
   assert.equal(isLilbeeModelRef("opus[1m]"), false);
+  // A vendor-namespaced id from another provider must not take the lilbee
+  // path: it would cost a blocking HTTP round trip on every task spawn.
+  assert.equal(isLilbeeModelRef("opencode/minimax-m2.5-free"), false);
 });
 
 test("rest config strips the /mcp path and carries the token", () => {
@@ -21,13 +24,17 @@ test("rest config strips the /mcp path and carries the token", () => {
   assert.deepEqual(cfg, { baseUrl: "http://127.0.0.1:8383", token: "tok" });
 });
 
-test("rest config falls back to ANTHROPIC_BASE_URL and is null without either", () => {
-  const cfg = lilbeeRestConfig({
-    NODE_ENV: "test" as const,
-    ANTHROPIC_BASE_URL: "http://127.0.0.1:8383",
-    ANTHROPIC_AUTH_TOKEN: "tok2",
-  });
-  assert.deepEqual(cfg, { baseUrl: "http://127.0.0.1:8383", token: "tok2" });
+test("ANTHROPIC_BASE_URL alone is not lilbee", () => {
+  // That variable names any Anthropic-compatible endpoint; treating it as
+  // lilbee would send the auth token to a host that never opted in.
+  assert.equal(
+    lilbeeRestConfig({
+      NODE_ENV: "test" as const,
+      ANTHROPIC_BASE_URL: "https://llm.corp",
+      ANTHROPIC_AUTH_TOKEN: "tok2",
+    }),
+    null
+  );
   assert.equal(lilbeeRestConfig({ NODE_ENV: "test" as const }), null);
 });
 
