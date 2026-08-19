@@ -99,7 +99,10 @@ export interface TaskTokens {
   input: number;
   output: number;
   cache?: number;
+  /** Lifetime spend across every turn. Bills, not occupancy. */
   total: number;
+  /** What the model holds now: the last turn's input plus its reply. */
+  contextUsed?: number;
 }
 
 export interface SessionHandle {

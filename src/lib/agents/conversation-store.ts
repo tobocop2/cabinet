@@ -2362,13 +2362,17 @@ function aggregateTokens(turns: ConversationTurn[]): ConversationTokens {
   let input = 0;
   let output = 0;
   let cache = 0;
+  let contextUsed: number | undefined;
   for (const turn of turns) {
     if (!turn.tokens) continue;
     input += turn.tokens.input;
     output += turn.tokens.output;
     cache += turn.tokens.cache ?? 0;
+    // Occupancy is the latest turn alone: its input is the whole conversation
+    // replayed, so the running sum counts the history once per turn.
+    contextUsed = turn.tokens.input + turn.tokens.output;
   }
-  return { input, output, cache, total: input + output };
+  return { input, output, cache, total: input + output, contextUsed };
 }
 
 async function nextTurnNumber(id: string, cabinetPath?: string): Promise<number> {

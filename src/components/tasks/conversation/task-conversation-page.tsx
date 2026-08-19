@@ -907,8 +907,13 @@ export function TaskConversationPage({
     [task]
   );
   const contextWindow = task?.meta.runtime?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  // Occupancy, not lifetime spend. `total` sums every turn, and each turn's
+  // input is the whole conversation replayed, so it passes the window while
+  // the model still has room. Older conversations have no `contextUsed`, so
+  // fall back rather than showing nothing.
+  const contextUsed = task?.meta.tokens?.contextUsed ?? task?.meta.tokens?.total ?? 0;
   const tokenPct = task?.meta.tokens
-    ? Math.min(100, (task.meta.tokens.total / contextWindow) * 100)
+    ? Math.min(100, (contextUsed / contextWindow) * 100)
     : 0;
 
   const isTerminalMode = task ? isLegacyAdapterType(task.meta.adapterType) : false;
@@ -1865,7 +1870,7 @@ export function TaskConversationPage({
             <div className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground">
               <span title={task?.meta.runtime?.servedModel || undefined}>{runtimeLabel}</span>
               <span>·</span>
-              <TokenBar used={task.meta.tokens?.total ?? 0} window={contextWindow} />
+              <TokenBar used={contextUsed} window={contextWindow} />
               {task.meta.errorKind ? (
                 <>
                   <span>·</span>
