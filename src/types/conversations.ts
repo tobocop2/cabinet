@@ -93,7 +93,17 @@ export interface ConversationTokens {
   input: number;
   output: number;
   cache?: number;
+  /** Lifetime spend across every turn. Bills, not occupancy. */
   total: number;
+  /**
+   * What the model is holding right now: the last turn's input plus its reply.
+   *
+   * Not `total`. Every turn resends the whole conversation, so each turn's
+   * input already contains the previous ones and summing them counts the
+   * history once per turn. A two-turn task read "216.9k / 200k" and raised the
+   * compaction banner while the model was nowhere near its window.
+   */
+  contextUsed?: number;
 }
 
 export interface ConversationMeta {
@@ -132,6 +142,10 @@ export interface ConversationMeta {
   tokens?: ConversationTokens;
   runtime?: {
     contextWindow?: number;
+    /** Model id the provider actually reported on the wire (e.g. a local
+     * model ref served via an Anthropic-compatible endpoint). Shown in the
+     * task header when it differs from the requested alias. */
+    servedModel?: string;
   };
   doneAt?: string;
   archivedAt?: string;

@@ -20,6 +20,7 @@ ensureBetterSqlite3();
 // re-merge from the file directly (mtime-cached), but loading here keeps the
 // daemon's own behavior consistent with Next.js.
 import { loadCabinetEnv } from "../src/lib/runtime/cabinet-env";
+import { SerialChains } from "./serial-chains";
 loadCabinetEnv();
 
 // Diagnostic logging: console capture + crash markers into
@@ -343,6 +344,8 @@ interface StructuredSession extends BaseSession {
     outputTokens: number;
     cachedInputTokens?: number;
   } | null;
+  /** Wire-reported model id from the adapter result. */
+  adapterModel?: string | null;
   /**
    * Classified error from the last failed run, written by the daemon so both
    * the poll path and `finalizeSessionConversation` can attach it to
@@ -427,6 +430,10 @@ async function syncConversationChunk(sessionId: string, chunk: string): Promise<
   await appendConversationTranscript(sessionId, plainChunk, meta.cabinetPath);
 }
 
+// Local-model providers stream per-token deltas (hundreds of tiny chunks a
+// second); unchained appends scramble the stored transcript pairwise.
+const transcriptWrites = new SerialChains();
+
 function emitSessionOutput(
   session: ActiveSession,
   chunk: string,
@@ -435,12 +442,16 @@ function emitSessionOutput(
   if (!chunk) return;
 
   session.output.push(chunk);
-  void syncConversationChunk(session.id, chunk).catch((err) => {
-    console.warn(
-      `[cabinet-daemon] failed to sync transcript chunk for session ${session.id}:`,
-      err
-    );
-  });
+  void transcriptWrites.run(
+    session.id,
+    () => syncConversationChunk(session.id, chunk),
+    (err) => {
+      console.warn(
+        `[cabinet-daemon] failed to sync transcript chunk for session ${session.id}:`,
+        err
+      );
+    }
+  );
   if (session.ws && session.ws.readyState === WebSocket.OPEN) {
     session.ws.send(chunk);
   }
@@ -452,6 +463,9 @@ function emitSessionOutput(
 }
 
 async function finalizeSessionConversation(session: ActiveSession): Promise<void> {
+  // Drain pending transcript appends so the finalize pass reads a complete,
+  // ordered transcript.
+  await transcriptWrites.drain(session.id);
   const meta = await readConversationMeta(session.id);
   if (!meta) {
     console.warn(
@@ -463,6 +477,8 @@ async function finalizeSessionConversation(session: ActiveSession): Promise<void
   const plain = stripAnsi(session.output.join(""));
   const adapterUsage =
     session.kind === "structured" ? session.adapterUsage ?? null : null;
+  const adapterModel =
+    session.kind === "structured" ? session.adapterModel ?? null : null;
   const adapterErrorKind =
     session.kind === "structured" ? session.adapterErrorKind ?? null : null;
   const adapterErrorHint =
@@ -532,6 +548,7 @@ async function finalizeSessionConversation(session: ActiveSession): Promise<void
           total: adapterUsage.inputTokens + adapterUsage.outputTokens,
         }
       : undefined,
+    servedModel: adapterModel ?? undefined,
     errorKind: adapterErrorKind ?? undefined,
     errorHint: adapterErrorHint ?? undefined,
     errorRetryAfterSec: adapterErrorRetryAfterSec ?? undefined,
@@ -898,6 +915,7 @@ function createStructuredSession(input: {
       session.adapterSessionId = result.sessionId ?? null;
       session.adapterSessionParams = result.sessionParams ?? null;
       session.adapterUsage = result.usage ?? null;
+      session.adapterModel = result.model ?? null;
 
       // Classify failures so the UI can surface an actionable hint.
       // Prefer stderrBuffer, but fall back to the adapter-reported
@@ -1554,6 +1572,8 @@ const server = http.createServer(async (req, res) => {
               : null,
           adapterUsage:
             active.kind === "structured" ? active.adapterUsage ?? null : null,
+          adapterModel:
+            active.kind === "structured" ? active.adapterModel ?? null : null,
           adapterErrorKind:
             active.kind === "structured" ? active.adapterErrorKind ?? null : null,
           adapterErrorHint:

@@ -24,6 +24,7 @@ import { useSkillMentionItems } from "@/hooks/use-skill-mention-items";
 import { useComposerAttachments } from "@/components/composer/use-composer-attachments";
 import { fetchCabinetOverviewClient } from "@/lib/cabinets/overview-client";
 import { cn } from "@/lib/utils";
+import { formatServedModel } from "@/lib/agents/runtime-format";
 import type { ConversationRuntimeOverride } from "@/types/conversations";
 import { useLocale } from "@/i18n/use-locale";
 
@@ -395,7 +396,9 @@ export function TaskComposerPanel({
 
       <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">
         ⌘↵ to send · @ to mention · this turn&rsquo;s runtime:{" "}
-        {effectiveRuntime.model || effectiveRuntime.providerId || "default"}
+        {(effectiveRuntime.model && formatServedModel(effectiveRuntime.model)) ||
+          effectiveRuntime.providerId ||
+          "default"}
       </p>
     </div>
   );

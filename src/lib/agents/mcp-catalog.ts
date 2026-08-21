@@ -31,6 +31,7 @@
  *   - `cabinet-broker` — reserved for the future cloud build (managed OAuth,
  *                   secret server-side). Not used by the local build.
  */
+import type { StatusProbe } from "@/lib/integrations/status-probe";
 
 import { buildSlackCreateUrl, buildSlackManifestJson } from "./slack-manifest";
 
@@ -114,6 +115,19 @@ export interface CatalogEntry {
   command?: string;
   args?: string[];
   /**
+   * How the status bar asks this integration's own server whether it is
+   * healthy. Entries that declare it get a pill; entries that do not are
+   * unaffected. See `src/lib/integrations/status-probe.ts`.
+   */
+  statusProbe?: StatusProbe;
+  /**
+   * Relative path (from the repo root) to a first-party server's local build.
+   * When it exists — i.e. Cabinet is running from source — the config writer
+   * runs `node <abs path>` instead of `command`/`args`, so a not-yet-published
+   * server still works in dev. Absent in packaged builds → falls back to npx.
+   */
+  localBuild?: string;
+  /**
    * Extra stdio args appended only when a given credential has a value in
    * `.cabinet.env`. Used for flags that apply to the "bring your own app" path
    * but would break the built-in/default path. Concrete case: Microsoft 365's
@@ -128,7 +142,6 @@ export interface CatalogEntry {
    * runs `node <abs path>` instead of `command`/`args`, so a not-yet-published
    * server still works in dev. Absent in packaged builds → falls back to npx.
    */
-  localBuild?: string;
   /**
    * http entry whose URL comes from a user-supplied credential — per-account
    * remotes (Zapier, Make, ServiceNow) or bring-your-own community endpoints.
@@ -685,6 +698,98 @@ const MICROSOFT_365: CatalogEntry = {
     {
       title: "Create a client secret",
       body: "Certificates & secrets → New client secret → copy the value, then paste the Client ID, Tenant ID, and Secret below.",
+    },
+  ],
+};
+
+const LILBEE: CatalogEntry = {
+  id: "lilbee",
+  label: "lilbee",
+  blurb:
+    "Local AI for your knowledge base: cited semantic search over your cabinet, and models your agents browse, pull, and run on your own hardware.",
+  iconSlug: "lilbee",
+  bgImage: "/integrations/lilbee-bg.webp",
+  logo: "/logos/lilbee.svg",
+  sourceUrl: "https://github.com/tobocop2/lilbee",
+  trustTier: "vendor",
+  vendorName: "lilbee",
+  authBackend: "token",
+  transport: "stdio",
+  mcpServerName: "cabinet-lilbee",
+  command: "npx",
+  // The lilbee npm launcher bootstraps the standalone binary locally, or
+  // bridges to a remote lilbee server when LILBEE_URL is set. Everything runs
+  // on the user's own hardware; there is no account and no cloud API.
+  args: ["-y", "lilbee@0.6.90", "mcp"],
+  localBuild: "mcps/mcp-lilbee/bin/lilbee-mcp.mjs",
+  statusProbe: {
+    urlEnv: "LILBEE_URL",
+    tokenEnv: "LILBEE_TOKEN",
+    path: "/api/health",
+    readyField: "chat_ready",
+    detailPath: "/api/models",
+    detailField: "chat.active",
+  },
+  serverEnv: {
+    LILBEE_URL: "${LILBEE_URL}",
+    LILBEE_TOKEN: "${LILBEE_TOKEN}",
+    LILBEE_DATA_DIR: "${LILBEE_DATA_DIR}",
+  },
+  credentials: [
+    {
+      envKey: "LILBEE_DATA_DIR",
+      label: "Library location (optional)",
+      kind: "filepath",
+      required: false,
+      placeholder: "~/my-cabinet",
+      hint: "Folder lilbee indexes and searches. Leave empty for lilbee's default library.",
+    },
+    {
+      envKey: "LILBEE_URL",
+      label: "Remote server URL (optional)",
+      kind: "plain",
+      required: false,
+      placeholder: "http://localhost:8383/mcp",
+      hint: "Leave empty to run lilbee on this machine. Set it to use a lilbee server elsewhere, e.g. your GPU box.",
+    },
+    {
+      envKey: "LILBEE_TOKEN",
+      label: "Remote session token (optional)",
+      kind: "secret",
+      required: false,
+      placeholder: "paste from server.json",
+      hint: "Required with a remote URL. Found in server.json in the remote server's data directory. Stored only on this device.",
+    },
+  ],
+  actions: [
+    "Search your cabinet with citations",
+    "Index folders, PDFs & crawled pages",
+    "Browse the model catalog & pull models",
+    "Manage installed models & GPU placement",
+  ],
+  setupSteps: [
+    {
+      title: "No account needed",
+      body: "lilbee runs on your own hardware. Connecting starts it on demand via npx; the first local start downloads the lilbee binary.",
+    },
+    {
+      title: "Warm up the first start (recommended)",
+      body: "The one-time binary download is a few hundred MB. Run this once so the first connection is instant.",
+      copy: "npx -y lilbee prepare",
+    },
+    {
+      title: "Using a GPU box instead? (optional)",
+      body: "Start `lilbee serve` on the remote machine and paste its /mcp URL and session token below. With a URL set, nothing is downloaded locally.",
+    },
+    // The reliable switch is server-side: lilbee's messages_reasoning
+    // setting suppresses thinking on /v1/messages no matter what the client
+    // sends (a thinking model reasons by template default, so a client that
+    // merely omits the thinking parameter does not stop it). The client-side
+    // env var is a per-turn request; keep both documented. Docs only — no UI.
+    {
+      title: "Turn model reasoning off (optional)",
+      body: "A local thinking model reasons before it answers, which costs time on every turn. To turn that off, set `messages_reasoning = \"off\"` in the lilbee server's settings (TUI `/settings`, or config.toml). Optionally also put `MAX_THINKING_TOKENS=0` in `.cabinet.env` so the agent asks for no thinking per turn. Both apply to the next task; nothing restarts.",
+      copy: "messages_reasoning = \"off\"",
     },
   ],
 };
@@ -1422,6 +1527,7 @@ export const MCP_CATALOG: CatalogEntry[] = [
   STRIPE,
   DISCORD,
   TELEGRAM,
+  LILBEE,
   LINKEDIN,
   META_ADS,
   GOOGLE_ADS,

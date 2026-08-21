@@ -3,6 +3,7 @@ import type {
   ProviderInfo,
   ProviderModel,
 } from "@/types/agents";
+import { formatServedModel } from "@/lib/agents/runtime-format";
 
 function matchesId<T extends { id: string }>(
   values: T[] | undefined,
@@ -32,7 +33,12 @@ export function resolveProviderModel(
   // clobbering the user's selection. After hydration the real model wins.
   if (provider?.dynamicModels && !provider.modelsHydrated) {
     const preserved = requestedModel || fallbackModel;
-    if (preserved) return { id: preserved, name: preserved };
+    // GGUF repo-path refs render as their short name even before hydration;
+    // every other id (e.g. opencode/vendor-model) is preserved verbatim.
+    if (preserved) {
+      const name = /\.gguf$/i.test(preserved) ? formatServedModel(preserved) : preserved;
+      return { id: preserved, name };
+    }
   }
 
   return models[0];

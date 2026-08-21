@@ -1,12 +1,13 @@
 import * as pty from "node-pty";
 import { WebSocket } from "ws";
-import { readCabinetEnvFile } from "../../src/lib/runtime/cabinet-env";
+import { fileOwnedEnvKeys, readCabinetEnvFile } from "../../src/lib/runtime/cabinet-env";
 import {
   getOneShotLaunchSpec,
   getSessionLaunchSpec,
   resolveProviderId,
 } from "../../src/lib/agents/provider-runtime";
 import { buildPtyCliInvocation } from "../../src/lib/agents/provider-cli";
+import { mergeAdapterEnv } from "../../src/lib/agents/adapters/utils";
 import { resolveLegacyExecutionProviderId } from "../../src/lib/agents/adapters";
 import { createClaudeStreamAccumulator } from "../../src/lib/agents/adapters/claude-stream";
 import { stripAnsi } from "./ansi";
@@ -153,8 +154,15 @@ export function createPtyManager(deps: PtyManagerDeps): PtyManager {
 
     // Merge `.cabinet.env` values at spawn time so PTY runs see API keys
     // edited via the UI without a daemon restart. mtime-cached; cheap.
-    // process.env wins over file values (shell-supplied keys debug-override).
-    const cabinetEnvValues = readCabinetEnvFile().values;
+    // Shared with the adapter spawn path: a key this process copied out of
+    // the file at boot is a snapshot, not a shell override, so the live file
+    // wins for it. A plain spread would let the boot-time value shadow every
+    // later edit until a restart, which is the bug mergeAdapterEnv fixes.
+    const cabinetEnv = mergeAdapterEnv(
+      readCabinetEnvFile().values,
+      process.env,
+      fileOwnedEnvKeys(),
+    ) as Record<string, string>;
     const invocation = buildPtyCliInvocation(launch.command, launch.args);
     const term = pty.spawn(invocation.command, invocation.args, {
       name: "xterm-256color",
@@ -162,8 +170,7 @@ export function createPtyManager(deps: PtyManagerDeps): PtyManager {
       rows: 30,
       cwd,
       env: {
-        ...cabinetEnvValues,
-        ...(process.env as Record<string, string>),
+        ...cabinetEnv,
         PATH: deps.enrichedPath,
         TERM: "xterm-256color",
         COLORTERM: "truecolor",

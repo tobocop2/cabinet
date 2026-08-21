@@ -63,12 +63,24 @@ function findPageBySlug(slug: string, currentPath: string | null, nodes: TreeNod
   // *slugifies to* the target slug.
   const lastSeg = (p: string) => p.split("/").pop() ?? p;
   const parentOf = (p: string) => (p.includes("/") ? p.substring(0, p.lastIndexOf("/")) : "");
-  const matches = allPages.filter(
-    (p) =>
-      p.name === slug ||
-      p.path.endsWith("/" + slug) ||
-      slugifyPageName(lastSeg(p.path)) === slug
+  // Non-markdown targets (PDFs, images) carry their extension in the tree,
+  // but a wiki-link names them without it ([[cv-manual]] -> cv-manual.pdf),
+  // so also match on the extensionless basename.
+  // Known non-markdown extensions only: a bare `/\.[A-Za-z0-9]+$/` also eats
+  // dotted page names (`Q3.2026` -> `Q3`).
+  const stripExt = (s: string) => s.replace(/\.(pdf|csv|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|svg|avif|ico|mp4|webm|mov|mp3|wav|zip)$/i, "");
+  // Markdown wins outright. The tree stores markdown paths with `.md`
+  // stripped, so a markdown page matches on path alone; the extension-aware
+  // predicates exist for non-markdown targets and must not let `notes.csv`
+  // steal `[[notes]]` from `notes.md` on readdir order.
+  const markdownMatches = allPages.filter(
+    (p) => p.name === slug || p.path.endsWith("/" + slug) || slugifyPageName(lastSeg(p.path)) === slug
   );
+  const matches = markdownMatches.length
+    ? markdownMatches
+    : allPages.filter(
+        (p) => stripExt(lastSeg(p.path)) === slug || slugifyPageName(stripExt(lastSeg(p.path))) === slug
+      );
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0].path;
 

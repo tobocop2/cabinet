@@ -1937,6 +1937,12 @@
       "logIn": "Log in",
       "configure": "Configure"
     },
+    "integration": {
+      "online": "{{name}} is online",
+      "onlineWithDetail": "{{name}} is online and runs {{detail}}",
+      "notReady": "{{name}} responds but is not ready yet",
+      "offline": "{{name}} does not respond"
+    },
     "save": {
       "retryTitle": "Click to retry the failed save",
       "retryAriaLabel": "Save failed. Click to retry",

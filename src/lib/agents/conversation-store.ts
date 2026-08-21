@@ -1105,6 +1105,7 @@ async function finalizeMetaFromDaemonOutput(
       outputTokens: number;
       cachedInputTokens?: number;
     } | null;
+    adapterModel?: string | null;
     adapterErrorKind?: ConversationErrorKind | null;
     adapterErrorHint?: string | null;
     adapterErrorRetryAfterSec?: number | null;
@@ -1142,6 +1143,7 @@ async function finalizeMetaFromDaemonOutput(
               data.adapterUsage.inputTokens + data.adapterUsage.outputTokens,
           }
         : undefined,
+      servedModel: data.adapterModel ?? undefined,
       errorKind: failureHints.errorKind,
       errorHint: failureHints.errorHint,
       errorRetryAfterSec: failureHints.errorRetryAfterSec,
@@ -1448,6 +1450,8 @@ export async function finalizeConversation(
     output?: string;
     /** Token usage for this first-turn run, written to `meta.tokens`. */
     tokens?: ConversationTokens;
+    /** Wire-reported model id from the adapter, written to `meta.runtime`. */
+    servedModel?: string | null;
     errorKind?: ConversationErrorKind | null;
     errorHint?: string | null;
     errorRetryAfterSec?: number | null;
@@ -1545,6 +1549,9 @@ export async function finalizeConversation(
   // First-turn tokens — G7. Only write when the caller provided a reading and
   // we don't already have one (continue-turns handle aggregation via
   // aggregateTokens in appendAgentTurn/updateAgentTurn).
+  if (input.servedModel) {
+    meta.runtime = { ...meta.runtime, servedModel: input.servedModel };
+  }
   if (input.tokens) {
     const existing = meta.tokens;
     // Prefer the larger reading: if the continue path already aggregated, we
@@ -2355,13 +2362,17 @@ function aggregateTokens(turns: ConversationTurn[]): ConversationTokens {
   let input = 0;
   let output = 0;
   let cache = 0;
+  let contextUsed: number | undefined;
   for (const turn of turns) {
     if (!turn.tokens) continue;
     input += turn.tokens.input;
     output += turn.tokens.output;
     cache += turn.tokens.cache ?? 0;
+    // Occupancy is the latest turn alone: its input is the whole conversation
+    // replayed, so the running sum counts the history once per turn.
+    contextUsed = turn.tokens.input + turn.tokens.output;
   }
-  return { input, output, cache, total: input + output };
+  return { input, output, cache, total: input + output, contextUsed };
 }
 
 async function nextTurnNumber(id: string, cabinetPath?: string): Promise<number> {

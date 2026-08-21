@@ -96,12 +96,29 @@ function invalidateCache(): void {
  * never overwrite something already present in `process.env` — shell-supplied
  * env wins, so users can debug-override without editing the file.
  */
+// Keys whose process.env value was injected from the file by loadCabinetEnv
+// are recorded IN the env itself (not module state): Next.js can duplicate
+// this module per bundle, and child processes inherit the polluted env —
+// in both cases a module-level Set would read empty and the boot-time
+// snapshot would shadow live file edits until restart.
+const FILE_OWNED_MARKER = "CABINET_ENV_FILE_OWNED_KEYS";
+
 export function loadCabinetEnv(): void {
   const { values } = readCabinetEnvFile();
+  const owned = new Set((process.env[FILE_OWNED_MARKER] ?? "").split(",").filter(Boolean));
   for (const [key, value] of Object.entries(values)) {
-    if (typeof process.env[key] === "string" && process.env[key] !== "") continue;
+    const shellOwned =
+      typeof process.env[key] === "string" && process.env[key] !== "" && !owned.has(key);
+    if (shellOwned) continue;
     process.env[key] = value;
+    owned.add(key);
   }
+  process.env[FILE_OWNED_MARKER] = [...owned].sort().join(",");
+}
+
+/** Keys whose process.env value is a file snapshot, not a shell override. */
+export function fileOwnedEnvKeys(): ReadonlySet<string> {
+  return new Set((process.env[FILE_OWNED_MARKER] ?? "").split(",").filter(Boolean));
 }
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;

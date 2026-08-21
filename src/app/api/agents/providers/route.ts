@@ -14,6 +14,8 @@ import {
   getProviderUsage,
   updateProviderSettingsWithMigrations,
 } from "@/lib/agents/provider-management";
+import { applyModelEnvOverrides } from "@/lib/agents/model-env-overrides";
+import { withAdapterRuntimeEnv } from "@/lib/agents/adapters/utils";
 
 // Short in-memory cache: the GET response is driven by spawning 8 CLI probes,
 // and the page fires this endpoint on every mount. Cache shared across requests.
@@ -66,7 +68,10 @@ async function buildResponse() {
           iconAsset: p.iconAsset,
           installMessage: p.installMessage,
           installSteps: p.installSteps,
-          models: p.models || [],
+          // Relabel aliases the runtime env remaps (ANTHROPIC_DEFAULT_*_MODEL)
+          // so the picker shows the model that actually runs. Uses the same
+          // merge adapter spawns get, so label and behavior can't diverge.
+          models: applyModelEnvOverrides(p.id, p.models || [], withAdapterRuntimeEnv()),
           effortLevels: p.effortLevels || [],
           // Capability flag so UIs switch on a trait, not a hardcoded id list
           // (§13 invariant). When true the `models` above are only an offline

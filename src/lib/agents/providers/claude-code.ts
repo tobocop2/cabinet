@@ -6,6 +6,9 @@ import {
   resolveCliCommand,
 } from "../provider-cli";
 import { getNvmNodeBin } from "../nvm-path";
+import { lilbeeRestConfig, listLilbeeChatModels, toProviderModels } from "../lilbee-models";
+import { applyModelEnvOverrides } from "../model-env-overrides";
+import { withAdapterRuntimeEnv } from "../adapters/utils";
 
 // Effort levels per Claude Code docs: Fable 5, Opus 4.8/4.7, and Sonnet 5 all
 // support the full ladder including the `xhigh` rung. (Sonnet 4.6 stopped at
@@ -82,6 +85,30 @@ export const claudeCodeProvider: AgentProvider = {
       effortLevels: [],
     },
   ],
+  async listModels() {
+    // With a lilbee server configured, the picker lists the models actually
+    // installed on it (every Claude alias remaps to one of them anyway).
+    // Selecting a non-active entry swaps the engine at task start.
+    //
+    // Throws when the server is configured but unreachable, rather than
+    // returning the alias catalog: the route's `dynamic` flag means "this
+    // is the user's real list", and a UI that trusts a fallback as live
+    // overwrites a saved model id it cannot find. No lilbee configured is
+    // not a failure — that is the static catalog's case, so it returns.
+    if (!lilbeeRestConfig()) {
+      return applyModelEnvOverrides("claude-code", this.models ?? [], withAdapterRuntimeEnv());
+    }
+    const local = await listLilbeeChatModels();
+    if (!local) {
+      throw new Error(
+        "lilbee is configured but its model list could not be read. Check that the server at LILBEE_URL is running."
+      );
+    }
+    if (local.installed.length === 0) {
+      return applyModelEnvOverrides("claude-code", this.models ?? [], withAdapterRuntimeEnv());
+    }
+    return toProviderModels(local);
+  },
   detachedPromptLaunchMode: "session",
   supportsTerminalResume: true,
   effortLevels: [...EFFORT_LEVELS_WITH_XHIGH],
